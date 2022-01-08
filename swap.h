@@ -15,7 +15,7 @@ struct swap_space {
     /* add your own fields here */
 };
 
-struct swap_space * swap_init();
+struct swap_space * swap_init(void);
 void swap_deinit(struct swap_space * swap);
 void swap_free(struct swap_space * swap);
 

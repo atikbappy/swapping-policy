@@ -14,7 +14,7 @@
  * the swap size is specified when we 
  * manually create /tmp/cs452.swap 
  * the command we use: dd if=/dev/zero of=/tmp/cs452.swap bs=4096 count=256 */
-struct swap_space * swap_init() {
+struct swap_space * swap_init(void) {
     u32 pages, char_map_page_size;
     struct swap_space * swap = kmalloc(sizeof(struct swap_space), GFP_KERNEL);
 	printk(KERN_INFO "initializing the swap space\n");
