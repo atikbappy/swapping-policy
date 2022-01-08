@@ -1,0 +1,115 @@
+[   46.556278] petmem: loading out-of-tree module taints kernel.
+[   46.556327] petmem: module verification failed: signature and/or required key missing - tainting kernel
+[   46.556538] -------------------------
+[   46.556538] -------------------------
+[   46.556539] Initializing Pet Memory manager
+[   46.556540] -------------------------
+[   46.556540] -------------------------
+[   84.445357] Offlined Pages 32768
+[   84.446871] openning /dev/petmem...
+[   84.449383] process initialization...
+[   84.449401] petmem ioctl
+[   84.449403] Adding pool of order 27 (32768 pages) at ffff9f1208000000
+[   84.449407] Allocating 4096 bytes for tag array
+[   84.449816] closing /dev/petmem...
+[  114.097028] openning /dev/petmem...
+[  114.097053] process initialization...
+[  114.097066] petmem ioctl
+[  114.097069] Requested allocation of 10 bytes
+[  114.097071] Memory allocation
+[  114.097074] Node to break apart: 0000001000000000
+[  114.097078] petmem ioctl
+[  114.097080] Requested allocation of 10 bytes
+[  114.097082] Memory allocation
+[  114.097084] Node to break apart: 0000001000001000
+[  114.097101] petmem ioctl
+[  114.097103] Handling segfault
+[  114.101258] Allocated virtual memory is: 0xffff9f1208000000, and its physical memory is:0x000008000000
+[  114.101264] Allocated virtual memory is: 0xffff9f1208001000, and its physical memory is:0x000008001000
+[  114.101267] Allocated virtual memory is: 0xffff9f1208002000, and its physical memory is:0x000008002000
+[  114.101269] ~~~~~~~~~~~~~~~~~~~~~NEW PAGE FAULT!~~~~~~~~~~~~
+[  114.101271] Error code: 1
+[  114.101272] Fault Address 0x001000001000
+[  114.101274] 
+CR3 FULL SUMMARY:
+[  114.101276] PML4 offset: 0
+[  114.101278] PML4 index: 0 (0x000)
+[  114.101280] The Physical Address:0x00005412a000
+[  114.101282] Virtual Address: 0xffff9f125412a000
+[  114.101284] Page address to next level from cr3 : 0x00000005412d
+[  114.101285] 
+PDP FULL SUMMARY:
+[  114.101288] PDP offset: 64
+[  114.101290] PDP index: 512 (0x200)
+[  114.101291] The Physical Address:0x00005412d200
+[  114.101293] Virtual Address: 0xffff9f125412d200
+[  114.101295] Page address to next level from pdp : 0x000000008000
+[  114.101296] 
+PDE FULL SUMMARY:
+[  114.101299] PDE offset: 0
+[  114.101300] PDE index: 0 (0x000)
+[  114.101302] Hmmm...what is the PDE index? 0
+[  114.101304] The Physical Address:0x000008000000
+[  114.101305] Virtual Address: 0xffff9f1208000000
+[  114.101307] Page address to next level from pde : 0x000000008001
+[  114.101309] 
+PTE FULL SUMMARY:
+[  114.101311] PTE offset: 1
+[  114.101313] PTE index: 8 (0x008)
+[  114.101314] The Physical Address:0x000008001008
+[  114.101316] Virtual Address: 0xffff9f1208001008
+[  114.101318] Memory at this : 0x000000008002
+[  114.101351] petmem ioctl
+[  114.101353] Handling segfault
+[  114.101355] Allocated virtual memory is: 0xffff9f1208003000, and its physical memory is:0x000008003000
+[  114.101357] ~~~~~~~~~~~~~~~~~~~~~NEW PAGE FAULT!~~~~~~~~~~~~
+[  114.101359] Error code: 1
+[  114.101361] Fault Address 0x001000000000
+[  114.101362] 
+CR3 FULL SUMMARY:
+[  114.101364] PML4 offset: 0
+[  114.101366] PML4 index: 0 (0x000)
+[  114.101368] The Physical Address:0x00005412a000
+[  114.101369] Virtual Address: 0xffff9f125412a000
+[  114.101371] Page address to next level from cr3 : 0x00000005412d
+[  114.101372] 
+PDP FULL SUMMARY:
+[  114.101375] PDP offset: 64
+[  114.101377] PDP index: 512 (0x200)
+[  114.101378] The Physical Address:0x00005412d200
+[  114.101380] Virtual Address: 0xffff9f125412d200
+[  114.101381] Page address to next level from pdp : 0x000000008000
+[  114.101383] 
+PDE FULL SUMMARY:
+[  114.101385] PDE offset: 0
+[  114.101387] PDE index: 0 (0x000)
+[  114.101389] Hmmm...what is the PDE index? 0
+[  114.101390] The Physical Address:0x000008000000
+[  114.101392] Virtual Address: 0xffff9f1208000000
+[  114.101394] Page address to next level from pde : 0x000000008001
+[  114.101395] 
+PTE FULL SUMMARY:
+[  114.101397] PTE offset: 0
+[  114.101399] PTE index: 0 (0x000)
+[  114.101401] The Physical Address:0x000008001000
+[  114.101402] Virtual Address: 0xffff9f1208001000
+[  114.101404] Memory at this : 0x000000008003
+[  114.101491] petmem ioctl
+[  114.101493] Free memory
+[  114.101496] Freeing 1 pages at ffff3e2408003000
+[  114.101498] Invalidating Address ffff9f1208001000
+[  114.101501] Invalidating Address 0000001000000000
+[  114.101505] petmem ioctl
+[  114.101507] Free memory
+[  114.101509] Freeing 1 pages at ffff3e2408002000
+[  114.101510] Invalidating Address ffff9f1208001008
+[  114.101513] Table 1 is being freed
+[  114.101515] Freeing 1 pages at ffff3e2408001000
+[  114.101517] Invalidating Address ffff9f1208001000
+[  114.101519] Invalidating Address ffff9f1208000000
+[  114.101522] Table 2 is being freed
+[  114.101524] Freeing 1 pages at ffff3e2408000000
+[  114.101525] Invalidating Address ffff9f1208000000
+[  114.101528] Invalidating Address ffff9f125412d200
+[  114.101530] Invalidating Address 0000001000001000
+[  114.101682] closing /dev/petmem...
