@@ -1,1 +1,9 @@
 .idea
+*.o.cmd
+.tmp_versions/
+Module.symvers
+*.o
+modules.order
+*.ko
+petmem.mod.c
+*.ko.cmd
