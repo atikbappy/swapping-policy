@@ -33,29 +33,33 @@ struct mem_map * petmem_init_process(void) {
 	struct swap_space * swaps = swap_init();
     printk(KERN_INFO "process initialization...\n");
 	new_proc = (struct mem_map *)kmalloc(sizeof(struct mem_map), GFP_KERNEL);
-	INIT_LIST_HEAD(&(new_proc->memory_allocations));
+	INIT_LIST_HEAD(&(new_proc->memory_allocations));  // Makes circular list. Sets next and prev by itself
 	first_node->status = FREE;
-	first_node->size = ((PETMEM_REGION_END - PETMEM_REGION_START) >> PAGE_POWER_4KB);
+	first_node->size = ((PETMEM_REGION_END - PETMEM_REGION_START) >> PAGE_POWER_4KB); // No of pages
 	first_node->page_addr = PETMEM_REGION_START;
 
 	INIT_LIST_HEAD(&(first_node->list));
     new_proc->clock_hand = &(new_proc->memory_allocations);
     new_proc->swap = swaps;
-	list_add(&(first_node->list), &(new_proc->memory_allocations));
+	list_add(&(first_node->list), &(new_proc->memory_allocations)); // void list_add(struct list_head *new, struct list_head *head); add a new entry to the head
+    // new_proc->clock_hand = new_proc->memory_allocations = first_node->list
+    // filp->private_data = new_proc
     return new_proc;
 
 }
 
-void petmem_deinit_process(struct mem_map * map) {
+// de-initialize the whole address space.
+void petmem_deinit_process(struct mem_map * map) {  // map gets the filp->private_data
 	struct list_head * pos, * next;
 	struct vaddr_reg *entry;
     int i;
     //Frees up the swap space
 
     swap_free(map->swap);
-	list_for_each_safe(pos, next, &(map->memory_allocations)){
-		entry = list_entry(pos, struct vaddr_reg, list);
-        for(i = 0; i < entry->size; i++){
+	list_for_each_safe(pos, next, &(map->memory_allocations)){ // https://www.kernel.org/doc/htmldocs/kernel-api/API-list-for-each-safe.html
+        // next is actually n; a temporary storage
+		entry = list_entry(pos, struct vaddr_reg, list); // cast pos to vaddr_reg from list and return
+        for(i = 0; i < entry->size; i++){ // Takes each virtual page tries to free it if physical memory is attached.
             attempt_free_physical_address(entry->page_addr + (4096*i));
         }
 		list_del(pos);
@@ -66,7 +70,7 @@ void petmem_deinit_process(struct mem_map * map) {
 }
 
 /* called by petmem_ioctl() in case of LAZY_ALLOC. */
-uintptr_t petmem_alloc_vspace(struct mem_map * map, u64 num_pages) {
+uintptr_t petmem_alloc_vspace(struct mem_map * map, u64 num_pages) { // Only for allocating virtual memory
     printk("Memory allocation\n");
     return allocate(&(map->memory_allocations), num_pages);
 }
@@ -133,9 +137,9 @@ void * page_replacement_clock(struct mem_map * map, void ** mem){
     pte64_t * page;
  	struct list_head * pos, * next;
 	struct vaddr_reg *entry;
-    //Continuously cycle through the pages until a page is found to evict..
+    //Continuously cycle through the pages until a page is found to evict.
     while(1){
-        list_for_each_safe(pos, next, (map->clock_hand)){
+        list_for_each_safe(pos, next, (map->clock_hand)) {
             entry = list_entry(pos, struct vaddr_reg, list);
             // The definition of 'valid' just means if it can traverse the page table
             // and the entry is present.
@@ -340,7 +344,7 @@ int is_entire_page_free(void * page_structure){
     return PAGE_NOT_IN_USE;
 }
 
-void free_address(struct list_head * head_list, u64 page){
+void free_address(struct list_head * head_list, u64 page){ // Page is the address here
 	struct vaddr_reg * cur, * found, *next, *prev;
     int i;
 	found = NULL;
@@ -361,7 +365,8 @@ void free_address(struct list_head * head_list, u64 page){
 	found->status = FREE;
     for(i = 0; i < found->size; i++){
 
-        invlpg(found->page_addr + (i * 4096));
+        invlpg(found->page_addr + (i * 4096)); // NOTE: Remember that you must notify the hardware with invlpg whenever you modify a
+                                               //page entry that might have been cached in the TLB.
     }
 
 	//Coalesce nodes.
@@ -369,11 +374,11 @@ void free_address(struct list_head * head_list, u64 page){
 	prev = list_entry(found->list.prev, struct vaddr_reg, list);
 
 	if(next->page_addr != page && next->status == FREE){
-		list_del(found->list.next);
+		list_del(found->list.next); // We will delete the next because FREE next was generated from this current node
 		found->size += next->size;
 		kfree(next);
 	}
-	if(prev->page_addr != page && prev->status == FREE){
+	if(prev->page_addr != page && prev->status == FREE){  // prev allocated first then current allocated. prev freed first then now current is freeing
         found->page_addr = prev->page_addr;
 		list_del(found->list.prev);
 		found->size += prev->size;
@@ -382,14 +387,14 @@ void free_address(struct list_head * head_list, u64 page){
 
 }
 
-/* petmem_ioctl() calls petmem_alloc_vspace(), which calls this allocate(), 
+/* petmem_ioctl() calls petmem_alloc_vspace() using LAZY_ALLOC, which calls this allocate(),
  * and the 1st parameter passed in is that new_proc. */
-uintptr_t  allocate(struct list_head * head_list, u64 size){
+uintptr_t  allocate(struct list_head * head_list, u64 size){  // head_list is new_proc->memory_allocations and size is num of pages
 	struct vaddr_reg *cur, *node_to_consume, *new_node;
 	u64 current_size;
 	node_to_consume = NULL;
 	/* traverse map->memory_allocations, find one whose status is FREE. */
-	list_for_each_entry(cur, head_list, list){
+	list_for_each_entry(cur, head_list, list){  // cur = position; head_list = head of the list; list = name of the list_head within the struct.
 		if(cur->status == FREE && cur->size >= size){
 			node_to_consume = cur;
 			break;
