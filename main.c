@@ -31,9 +31,9 @@ uintptr_t petmem_alloc_pages(u64 num_pages) {
 
     // allocate from buddy
     list_for_each_entry(tmp_pool, &petmem_pool_list, node) {
-	// Get allocation size order
-	vaddr = (uintptr_t)buddy_alloc(tmp_pool, page_order);
-	if (vaddr) break;
+	    // Get allocation size order
+        vaddr = (uintptr_t)buddy_alloc(tmp_pool, page_order);
+        if (vaddr) break;
     }
 
     if (!vaddr) {
