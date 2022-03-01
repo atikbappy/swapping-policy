@@ -7,3 +7,7 @@ modules.order
 *.ko
 petmem.mod.c
 *.ko.cmd
+user/harness.a
+user/petmem
+user/test
+user/test_bandwidth
