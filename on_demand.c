@@ -40,6 +40,7 @@ struct mem_map * petmem_init_process(void) {
 
 	INIT_LIST_HEAD(&(first_node->list));
     new_proc->clock_hand = &(new_proc->memory_allocations);
+    new_proc->clock_page_index = 0;
     new_proc->swap = swaps;
 	list_add(&(first_node->list), &(new_proc->memory_allocations)); // void list_add(struct list_head *new, struct list_head *head); add a new entry to the head
     // new_proc->clock_hand = new_proc->memory_allocations = first_node->list
@@ -58,7 +59,7 @@ void petmem_deinit_process(struct mem_map * map) {  // map gets the filp->privat
     swap_free(map->swap);
 	list_for_each_safe(pos, next, &(map->memory_allocations)){ // https://www.kernel.org/doc/htmldocs/kernel-api/API-list-for-each-safe.html
         // next is actually n; a temporary storage
-		entry = list_entry(pos, struct vaddr_reg, list); // cast pos to vaddr_reg from list and return
+		entry = list_entry(pos, struct vaddr_reg, list); // cast pos to vaddr_reg. list = the name of the list_head within the struct.
         for(i = 0; i < entry->size; i++){ // Takes each virtual page tries to free it if physical memory is attached.
             attempt_free_physical_address(entry->page_addr + (4096*i));
         }
@@ -137,7 +138,11 @@ void * page_replacement_clock(struct mem_map * map, void ** mem){
     pte64_t * page;
  	struct list_head * pos, * next;
 	struct vaddr_reg *entry;
+
+    u64 i, initial_index;
+
     //Continuously cycle through the pages until a page is found to evict.
+    /*
     while(1){
         list_for_each_safe(pos, next, (map->clock_hand)) {
             entry = list_entry(pos, struct vaddr_reg, list);
@@ -157,7 +162,35 @@ void * page_replacement_clock(struct mem_map * map, void ** mem){
 
         }
     }
+    */
 
+    initial_index = map->clock_page_index;
+    while (1) {
+        list_for_each_safe(pos, next, (map->clock_hand)) {
+            entry = list_entry(pos, struct vaddr_reg, list);
+            for(i=initial_index; i < entry->size; i++) {
+                page = (pte64_t *)get_valid_page_entry(entry->page_addr + (i * (size << PAGE_POWER_4KB)));
+
+                if (page && page->accessed) {
+                    page->accessed = 0;
+                    printk("Found a page, but it gets a second chance. lucky bastard.\n");
+                }
+                else if (page) {
+                    map->clock_hand = next;
+                    map->clock_page_index = i;
+                    printk("FOUND A PAGE TO REPLACE!!!\n");
+                    *mem = (__va( BASE_TO_PAGE_ADDR( page->page_base_addr ) + PHYSICAL_OFFSET( entry->page_addr ) ));
+                    break;
+                }
+            }
+
+            if (page && !page->accessed){
+                return (void *)page;
+            }
+
+            initial_index = 0;
+        }
+    }
 }
 
 void clear_up_memory(struct mem_map * map){
