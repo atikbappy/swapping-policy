@@ -169,7 +169,7 @@ void * page_replacement_clock(struct mem_map * map, void ** mem){
         list_for_each_safe(pos, next, (map->clock_hand)) {
             entry = list_entry(pos, struct vaddr_reg, list);
             for(i=initial_index; i < entry->size; i++) {
-                page = (pte64_t *)get_valid_page_entry(entry->page_addr + (i * (size << PAGE_POWER_4KB)));
+                page = (pte64_t *)get_valid_page_entry(entry->page_addr + (i << PAGE_POWER_4KB));
 
                 if (page && page->accessed) {
                     page->accessed = 0;
