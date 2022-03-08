@@ -5,7 +5,8 @@ CFLAGS =
 LIB_OBJS = harness.a
 
 OBJS =  petmem \
-	test
+	test \
+	test_bandwidth
 
 build = \
 	@if [ -z "$V" ]; then \
@@ -19,7 +20,7 @@ build = \
 % : %.c $(LIB_OBJS)
 	$(call build,LINK,$(CC) $(CFLAGS) $< $(LIB_OBJS) -o $@)
 
-%.o : %.c 
+%.o : %.c
 	$(call build,CC,$(CC) $(CFLAGS) -c $< -o $@)
 
 %.a : %.o
@@ -29,5 +30,5 @@ build = \
 all: $(LIB_OBJS) $(OBJS)
 
 
-clean: 
+clean:
 	rm -f *.o $(OBJS) $(LIB_OBJS)

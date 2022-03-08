@@ -1,6 +1,8 @@
 LINUX_KERN=/usr/src/kernels/`uname -r`
 
-EXTRA_CFLAGS  += -DMODULE=1 -D__KERNEL__=1
+MY_CFLAGS += -g -DDEBUG -O0
+ccflags-y += $(MY_CFLAGS)
+CC += $(MY_CFLAGS)
 
 
 petmem-y := 	main.o \
@@ -15,7 +17,9 @@ obj-m := petmem.o
 
 all:
 	$(MAKE) -C $(LINUX_KERN) M=$(PWD) modules
+	EXTRA_CFLAGS="$(MY_CFLAGS)"
 
 clean:
 	$(MAKE) -Wformat -C $(LINUX_KERN) M=$(PWD) clean
 
+.PHONY: all clean
