@@ -138,6 +138,7 @@ void * page_replacement_clock(struct mem_map * map, void ** mem){
     pte64_t * page;
  	struct list_head * pos, * next;
 	struct vaddr_reg *entry;
+    bool found = false;
 
     u64 i, initial_index;
 
@@ -168,23 +169,27 @@ void * page_replacement_clock(struct mem_map * map, void ** mem){
     while (1) {
         list_for_each_safe(pos, next, (map->clock_hand)) {
             entry = list_entry(pos, struct vaddr_reg, list);
-            for(i=initial_index; i < entry->size; i++) {
-                page = (pte64_t *)get_valid_page_entry(entry->page_addr + (i << PAGE_POWER_4KB));
+            if (entry->status == ALLOCATED) {
+                for(i=initial_index; i < entry->size; i++) {
+                    page = (pte64_t *)get_valid_page_entry(entry->page_addr + (i << PAGE_POWER_4KB));
 
-                if (page && page->accessed) {
-                    page->accessed = 0;
-                    printk("Found a page, but it gets a second chance. lucky bastard.\n");
-                }
-                else if (page) {
-                    map->clock_hand = next;
-                    map->clock_page_index = i;
-                    printk("FOUND A PAGE TO REPLACE!!!\n");
-                    *mem = (__va( BASE_TO_PAGE_ADDR( page->page_base_addr ) + PHYSICAL_OFFSET( entry->page_addr ) ));
-                    break;
+                    if (page && page->accessed) {
+                        page->accessed = 0;
+                        printk("Found a page, but it gets a second chance. lucky bastard.\n");
+                    }
+                    else if (page) {
+                        // map->clock_hand = next;
+                        list_move_tail(next, map->clock_hand);
+                        map->clock_page_index = i;
+                        printk("FOUND A PAGE TO REPLACE!!!\n");
+                        *mem = (__va( BASE_TO_PAGE_ADDR( page->page_base_addr ) + PHYSICAL_OFFSET( entry->page_addr ) ));
+                        found = true;
+                        break;
+                    }
                 }
             }
 
-            if (page && !page->accessed){
+            if (found){
                 return (void *)page;
             }
 
