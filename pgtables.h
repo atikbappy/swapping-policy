@@ -275,7 +275,7 @@ typedef struct pde64 {
     u64 large_page      : 1;
     u64 global_page     : 1;
     u64 vmm_info        : 3;
-    u64 pt_base_addr    : 40;
+    u64 pt_base_addr    : 40;  // Physical page number of the page
     u64 available       : 11;
     u64 no_execute      : 1;
 } __attribute__((packed)) pde64_t;

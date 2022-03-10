@@ -23,12 +23,13 @@ struct mem_map {
    /* Add your own state here */
 	struct list_head memory_allocations;
     struct list_head * clock_hand;
-    u64 clock_page_index;
     struct swap_space * swap;
 };
 
-
-
+struct vp_node {
+    u64 page_addr;
+    struct list_head list;
+};
 
 struct mem_map * petmem_init_process(void);
 void petmem_deinit_process(struct mem_map * map);
@@ -36,12 +37,12 @@ void petmem_deinit_process(struct mem_map * map);
 uintptr_t petmem_alloc_vspace(struct mem_map * map, u64 num_pages);
 void petmem_free_vspace(struct mem_map * map, uintptr_t vaddr);
 
-int handle_table_memory(void * mem, struct mem_map * map);
+int handle_table_memory(void * mem, struct mem_map * map, u64 current_page_addr);
 void petmem_dump_vspace(struct mem_map * map);
 
 //Put page in the void *, return -1 if the page is not valid (FREE or not allocated).
-void clear_up_memory(struct mem_map * map);
-void * page_replacement_clock(struct mem_map * map,  void ** mem);
+void clear_up_memory(struct mem_map * map, u64 current_page_addr);
+void * page_replacement_clock(struct mem_map * map,  void ** mem, u64 current_page_addr);
 uintptr_t get_valid_page_entry(uintptr_t address);
 
 int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 error_code);
