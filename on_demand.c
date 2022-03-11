@@ -42,7 +42,9 @@ struct mem_map * petmem_init_process(void) {
 
 	INIT_LIST_HEAD(&(first_node->list));
     new_proc->swap = swaps;
-	list_add(&(first_node->list), &(new_proc->memory_allocations)); // void list_add(struct list_head *new, struct list_head *head); add a new entry to the head
+	list_add(&(first_node->list), &(new_proc->memory_allocations));
+    // void list_add(struct list_head *new, struct list_head *head); add a new entry just after the head node.
+    // It works as stack. New node is placed just after the head node.
     // new_proc->clock_hand = new_proc->memory_allocations = first_node->list
     // filp->private_data = new_proc
     return new_proc;
@@ -158,8 +160,7 @@ void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_pag
                 printk("Found a page, but it gets a second chance. lucky bastard.\n");
             }
             else if (page) {
-                //list_move_tail(next, map->clock_hand);
-                map->clock_hand = node->list; // Change clock hand
+                list_move_tail(&(map->clock_hand), &(node->list)); // Change clock hand
                 node->page_addr = current_page_addr;
                 printk("FOUND A PAGE TO REPLACE!!!\n");
                 *mem = (__va( BASE_TO_PAGE_ADDR( page->page_base_addr ) ));
@@ -241,7 +242,7 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
                 new_node = (struct vp_node *)kmalloc(sizeof(struct vp_node), GFP_KERNEL);
                 // INIT_LIST_HEAD(&(new_node->list));
                 new_node->page_addr = current_page_addr;
-                list_add(&(new_node->list), &(map->clock_hand));
+                list_add_tail(&(new_node->list), &(map->clock_hand)); // It should be a queue.
             }
         }
         else {
