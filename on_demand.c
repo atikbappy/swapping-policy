@@ -34,7 +34,7 @@ struct mem_map * petmem_init_process(void) {
     printk(KERN_INFO "process initialization...\n");
 	new_proc = (struct mem_map *)kmalloc(sizeof(struct mem_map), GFP_KERNEL);
 	INIT_LIST_HEAD(&(new_proc->memory_allocations));  // Makes circular list. Sets next and prev by itself
-	INIT_LIST_HEAD(new_proc->clock_hand);
+    INIT_LIST_HEAD(&(new_proc->clock_hand));
 
 	first_node->status = FREE;
 	first_node->size = ((PETMEM_REGION_END - PETMEM_REGION_START) >> PAGE_POWER_4KB); // No of pages
@@ -53,6 +53,7 @@ struct mem_map * petmem_init_process(void) {
 void petmem_deinit_process(struct mem_map * map) {  // map gets the filp->private_data
 	struct list_head * pos, * next;
 	struct vaddr_reg *entry;
+    struct vp_node *node;
     int i;
     //Frees up the swap space
 
@@ -67,10 +68,10 @@ void petmem_deinit_process(struct mem_map * map) {  // map gets the filp->privat
 		kfree(entry);
 	}
 
-    list_for_each_safe(pos, next, new_proc->clock_hand) {
-        entry = list_entry(pos, struct vp_node, list);
+    list_for_each_safe(pos, next, &(map->clock_hand)) {
+        node = list_entry(pos, struct vp_node, list);
         list_del(pos);
-        kfree(entry);
+        kfree(node);
     }
 
 	kfree(map);
@@ -134,6 +135,7 @@ uintptr_t get_valid_page_entry(uintptr_t address){
         return 0;
     }
 
+    // entries[1]->page_base_addr  = Physical page number of PTE and PTE64_INDEX( address ) 12-20 bits of CR3
     entries[0] = (pte64_t *)__va( BASE_TO_PAGE_ADDR( entries[1]->page_base_addr ) + PTE64_INDEX( address ) * 8 );
     if(!entries[0]->present) {
         return 0;
@@ -145,10 +147,9 @@ void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_pag
     pte64_t * page;
     struct list_head * pos, * next;
     struct vp_node *node;
-    bool found = false;
 
     while (1) {
-        list_for_each_safe(pos, next, (map->clock_hand)) {
+        list_for_each_safe(pos, next, &(map->clock_hand)) {
             node = list_entry(pos, struct vp_node, list);
             page = (pte64_t *)__va(node->page_addr);
 
@@ -157,7 +158,8 @@ void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_pag
                 printk("Found a page, but it gets a second chance. lucky bastard.\n");
             }
             else if (page) {
-                list_move_tail(next, map->clock_hand); // Change clock hand
+                //list_move_tail(next, map->clock_hand);
+                map->clock_hand = node->list; // Change clock hand
                 node->page_addr = current_page_addr;
                 printk("FOUND A PAGE TO REPLACE!!!\n");
                 *mem = (__va( BASE_TO_PAGE_ADDR( page->page_base_addr ) ));
@@ -192,6 +194,7 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
     int bad_signal = 0;
     int valid_range = check_address_range(map, fault_addr);
     struct vp_node *new_node;
+    char * space;
 
     printk("Handling segfault\n");
     if(valid_range == NOT_VALID_RANGE|| error_code == ERROR_PERMISSION ){
@@ -236,14 +239,13 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
 
             if (space != 0) {
                 new_node = (struct vp_node *)kmalloc(sizeof(struct vp_node), GFP_KERNEL);
-                INIT_LIST_HEAD(&(new_node->list));
+                // INIT_LIST_HEAD(&(new_node->list));
                 new_node->page_addr = current_page_addr;
-                list_add(&(new_node->list), &(list_add->clock_hand));
+                list_add(&(new_node->list), &(map->clock_hand));
             }
         }
         else {
             void * page = kmalloc(4096,GFP_KERNEL);
-            char * space;
             //Swap out memory using page_address.
             printk("Got here\n");
         /* in page fault handler, we know we run of memory, so we swap a page in. */
