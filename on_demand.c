@@ -17,6 +17,8 @@
 #define NOT_VALID_RANGE 1
 #define ALLOCATED_ADDRESS_RANGE 2
 #define DEBUG 1
+#define CLOCK_POLICY "clock"
+#define FIFO_POLICY "fifo"
 
 /* when user testing program opens /dev/petmem, this function gets called by petmem_open(),
  * which initializes a list head represented by new_proc->memory_allocations,
@@ -35,6 +37,7 @@ struct mem_map * petmem_init_process(void) {
 	new_proc = (struct mem_map *)kmalloc(sizeof(struct mem_map), GFP_KERNEL);
 	INIT_LIST_HEAD(&(new_proc->memory_allocations));  // Makes circular list. Sets next and prev by itself
     INIT_LIST_HEAD(&(new_proc->clock_hand));
+    new_proc->policy_name = CLOCK_POLICY;
 
 	first_node->status = FREE;
 	first_node->size = ((PETMEM_REGION_END - PETMEM_REGION_START) >> PAGE_POWER_4KB); // No of pages
@@ -162,6 +165,7 @@ void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_pag
             else if (page) {
                 // current_page_addr is 0 means it's actually a page table (page)
                 if (current_page_addr == 0) { // This is a request for page swap with a page table (page table is also 4kb page)
+                    list_move_tail(&(map->clock_hand), &(node->list->next)); // Start just after deleted node.
                     list_del(&(node->list));
                     kfree(node);
                 } else {
@@ -176,14 +180,38 @@ void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_pag
     }
 }
 
+void * page_replacement_fifo(struct mem_map * map, void ** mem, u64 current_page_addr){
+    pte64_t * page;
+    struct vp_node *node;
+
+    node = list_entry(map->clock_hand->next, struct vp_node, list);
+    page = (pte64_t *)__va(node->page_addr);
+
+    if (current_page_addr == 0) { // This is a request for page swap with a page table (page table is also 4kb page)
+        list_del(&(node->list));
+        kfree(node);
+    } else {
+        list_move_tail(&(node->list), &(map->clock_hand)); // Move the node so that it will pop last from queue
+        node->page_addr = current_page_addr;
+    }
+
+    printk("FOUND A PAGE TO REPLACE!!!\n");
+    *mem = (__va( BASE_TO_PAGE_ADDR( page->page_base_addr ) ));
+    return (void *)page;
+}
+
 void clear_up_memory(struct mem_map * map, u64 current_page_addr){
     u32 index;
     pte64_t * page_to_replace, * mem_location;
 
     index = 0;
     printk("GETTING SOME MO MEMZ\n");
-	/* pick a page based on the clock policy */
-    page_to_replace = (pte64_t *)page_replacement_clock(map, (void **)&mem_location, current_page_addr);
+    /* pick a page based on the swap policy - clock policy is default */
+    if (map->policy_name == FIFO_POLICY) {
+        page_to_replace = (pte64_t *)page_replacement_fifo(map, (void **)&mem_location, current_page_addr);
+    } else {
+        page_to_replace = (pte64_t *)page_replacement_clock(map, (void **)&mem_location, current_page_addr);
+    }
     page_to_replace->present = 0;
     page_to_replace->dirty = 1;
     swap_out_page(map->swap, &index, mem_location);
