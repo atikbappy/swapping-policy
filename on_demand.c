@@ -170,14 +170,13 @@ void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_pag
                 printk("Found a page, but it gets a second chance. lucky bastard.\n");
             }
             else if (page) {
-                // current_page_addr is 0 means it's actually a page table (page)
-                if (current_page_addr == 0) { // This is a request for page swap with a page table (page table is also 4kb page)
-                    list_move_tail(&(map->clock_hand), node->list.next); // Start just after deleted node.
+                list_move_tail(&(map->clock_hand), &(node->list)); // Change clock hand
+                // current_page_addr is 0 means it's actually a page table (page) -> So, we should not include in clock # Requires further discussion
+                if (current_page_addr != 0) {
+                    node->page_addr = current_page_addr;
+                } else { // This is a request for page swap with a page table (page table is also 4kb page)
                     list_del(&(node->list));
                     kfree(node);
-                } else {
-                    list_move_tail(&(map->clock_hand), &(node->list)); // Change clock hand
-                    node->page_addr = current_page_addr;
                 }
                 printk("FOUND A PAGE TO REPLACE!!!\n");
                 *mem = (__va( BASE_TO_PAGE_ADDR( page->page_base_addr ) ));
