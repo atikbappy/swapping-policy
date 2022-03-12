@@ -3,6 +3,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include "petmem.h"
 #include "on_demand.h"
@@ -109,10 +110,16 @@ int handle_table_memory(void * mem, struct mem_map * map, u64 current_page_addr)
     uintptr_t temp;
     uintptr_t memory;
     pte64_t * handle = (pte64_t *)mem;
+    struct vp_node *new_node;
+
     memory = petmem_alloc_pages(1);
-    if (memory == 0){
+    if (memory == 0) {
         clear_up_memory(map, current_page_addr);
         memory = petmem_alloc_pages(1);
+    } else if (memory && current_page_addr) {  // current_page_addr will have address if it's PTE
+        new_node = (struct vp_node *)kmalloc(sizeof(struct vp_node), GFP_KERNEL);
+        new_node->page_addr = current_page_addr;
+        list_add_tail(&(new_node->list), &(map->clock_hand)); // It should be a queue.
     }
     temp = (uintptr_t)__va(memory);
     printk("Allocated virtual memory is: 0x%012lx, and its physical memory is:0x%012lx\n", temp, __pa(temp));
@@ -165,7 +172,7 @@ void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_pag
             else if (page) {
                 // current_page_addr is 0 means it's actually a page table (page)
                 if (current_page_addr == 0) { // This is a request for page swap with a page table (page table is also 4kb page)
-                    list_move_tail(&(map->clock_hand), &(node->list->next)); // Start just after deleted node.
+                    list_move_tail(&(map->clock_hand), node->list.next); // Start just after deleted node.
                     list_del(&(node->list));
                     kfree(node);
                 } else {
@@ -184,7 +191,7 @@ void * page_replacement_fifo(struct mem_map * map, void ** mem, u64 current_page
     pte64_t * page;
     struct vp_node *node;
 
-    node = list_entry(map->clock_hand->next, struct vp_node, list);
+    node = list_entry(map->clock_hand.next, struct vp_node, list);
     page = (pte64_t *)__va(node->page_addr);
 
     if (current_page_addr == 0) { // This is a request for page swap with a page table (page table is also 4kb page)
@@ -207,7 +214,7 @@ void clear_up_memory(struct mem_map * map, u64 current_page_addr){
     index = 0;
     printk("GETTING SOME MO MEMZ\n");
     /* pick a page based on the swap policy - clock policy is default */
-    if (map->policy_name == FIFO_POLICY) {
+    if (strcmp(map->policy_name, FIFO_POLICY) == 0) {
         page_to_replace = (pte64_t *)page_replacement_fifo(map, (void **)&mem_location, current_page_addr);
     } else {
         page_to_replace = (pte64_t *)page_replacement_clock(map, (void **)&mem_location, current_page_addr);
@@ -228,7 +235,6 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
     u64 current_page_addr;
     int bad_signal = 0;
     int valid_range = check_address_range(map, fault_addr);
-    struct vp_node *new_node;
     char * space;
 
     printk("Handling segfault\n");
@@ -263,7 +269,6 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
     // TODO: Check the dirty bit as well, to differentiate between compulsory vs swapped out.
 
     if (!pte->present) {
-        space = (void *)petmem_alloc_pages(1);
         current_page_addr = BASE_TO_PAGE_ADDR( pde->pt_base_addr ) + PTE64_INDEX( fault_addr ) * 8;
 
         if(!pte->dirty) { // Dirty means it was touched at least once in its lifetime
@@ -271,12 +276,6 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
             pte->present = 1;
             pte->writable = 1;
             pte->user_page =1;
-
-            if (space != 0) {
-                new_node = (struct vp_node *)kmalloc(sizeof(struct vp_node), GFP_KERNEL);
-                new_node->page_addr = current_page_addr;
-                list_add_tail(&(new_node->list), &(map->clock_hand)); // It should be a queue.
-            }
         }
         else {
             void * page = kmalloc(4096,GFP_KERNEL);
@@ -285,6 +284,7 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
             /* in page fault handler, we know we run of memory, so we swap a page in. */
             swap_in_page(map->swap, pte->page_base_addr, page);
             printk("Swapped in the page\n");
+            space = (void *)petmem_alloc_pages(1);
             /* when space is 0, it tells us it's time to swap some pages out. */
             if (space == 0){
                 clear_up_memory(map, current_page_addr);
