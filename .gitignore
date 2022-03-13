@@ -11,5 +11,6 @@ user/harness.a
 user/petmem
 user/test
 user/test_bandwidth
+user/test_bw_no_locality
+user/test_bw_with_locality
 add_module_symbol.gdb
-

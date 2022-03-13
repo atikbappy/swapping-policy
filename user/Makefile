@@ -6,7 +6,8 @@ LIB_OBJS = harness.a
 
 OBJS =  petmem \
 	test \
-	test_bandwidth
+	test_bw_no_locality \
+	test_bw_with_locality
 
 build = \
 	@if [ -z "$V" ]; then \
