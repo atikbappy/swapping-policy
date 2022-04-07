@@ -42,27 +42,21 @@ int main(int argc, char ** argv) {
     long long int num_ints = size_in_bytes / sizeof(int);
     printf("  number of integers in array: %lld\n", num_ints);
 
-    long long int twenty_percent = (num_ints * 20) / 100;
-    long long int eighty_percent = num_ints - twenty_percent;
-    srandom(1000);
-
     long long int i = 0, index;
     double time_since_last_print = 2.0;
     double t = Time_GetSeconds();
     int loop_count = 0;
 
+    FILE * fp;
+    fp = freopen("input.txt", "r", stdin);
+
     while (1) {
-        int boundary = random() % 10;
-        long long int r = random();
-        if (boundary > 1) {
-            index = r % twenty_percent;
-        } else {
-            index = (r % eighty_percent) + twenty_percent;
-        }
+        scanf("%d", &index);
         x[index] += 1;
         i++;
 
         if (i == num_ints) {
+            rewind(fp);
             double delta_time = Time_GetSeconds() - t;
             time_since_last_print += delta_time;
             if (time_since_last_print >= 0.2) { // only print every .2 seconds
@@ -78,6 +72,7 @@ int main(int argc, char ** argv) {
         }
     }
 
+    fclose(fp);
     pet_free(x);
 
     return 0;
