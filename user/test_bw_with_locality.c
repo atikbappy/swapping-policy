@@ -42,21 +42,24 @@ int main(int argc, char ** argv) {
     long long int num_ints = size_in_bytes / sizeof(int);
     printf("  number of integers in array: %lld\n", num_ints);
 
-    long long int i = 0, index;
+    long long int i = 0, index, j;
     double time_since_last_print = 2.0;
     double t = Time_GetSeconds();
     int loop_count = 0;
 
     FILE * fp;
     fp = freopen("input.txt", "r", stdin);
+    int * indices;
+    indices = (int *)malloc(size * sizeof(int));
+    for (j=0; j<size; j++) {
+        scanf("%d", &indices[j]);
+    }
 
     while (1) {
-        scanf("%d", &index);
-        x[index] += 1;
+        x[indices[i]] += 1;
         i++;
 
         if (i == num_ints) {
-            rewind(fp);
             double delta_time = Time_GetSeconds() - t;
             time_since_last_print += delta_time;
             if (time_since_last_print >= 0.2) { // only print every .2 seconds
