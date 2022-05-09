@@ -19,6 +19,9 @@ double Time_GetSeconds() {
  */
 
 int main(int argc, char ** argv) {
+    FILE * fp;
+    fp = freopen("input.txt", "r", stdin);
+
     if (argc != 2) {
         fprintf(stderr, "usage: spin <memory (MB)>\n");
         exit(1);
@@ -47,11 +50,9 @@ int main(int argc, char ** argv) {
     double t = Time_GetSeconds();
     int loop_count = 0;
 
-    FILE * fp;
-    fp = freopen("input.txt", "r", stdin);
     int * indices;
-    indices = (int *)malloc(size * sizeof(int));
-    for (j=0; j<size; j++) {
+    indices = (int *)malloc(num_ints * sizeof(int));
+    for (j=0; j<num_ints; j++) {
         scanf("%d", &indices[j]);
     }
 

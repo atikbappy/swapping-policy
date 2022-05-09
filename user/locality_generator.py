@@ -18,9 +18,9 @@ twenty_percent = (num_of_int * 20) // 100
 
 for index in helper_list:
     if index > 1:
-        output_list.append(random.randint(0, twenty_percent))
+        output_list.append(random.randint(0, twenty_percent - 1))
     else:
-        output_list.append(random.randint(twenty_percent + 1, num_of_int))
+        output_list.append(random.randint(twenty_percent, num_of_int - 1))
 
 with open("input.txt", "w") as text_file:
     text_file.write(" ".join(str(x) for x in output_list))
