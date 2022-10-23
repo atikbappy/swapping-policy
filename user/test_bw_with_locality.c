@@ -45,16 +45,16 @@ int main(int argc, char ** argv) {
     long long int num_ints = size_in_bytes / sizeof(int);
     printf("  number of integers in array: %lld\n", num_ints);
 
-    long long int i = 0, index, j;
-    double time_since_last_print = 2.0;
-    double t = Time_GetSeconds();
-    int loop_count = 0;
-
     int * indices;
     indices = (int *)malloc(num_ints * sizeof(int));
     for (j=0; j<num_ints; j++) {
         scanf("%d", &indices[j]);
     }
+
+    long long int i = 0, index, j;
+    double time_since_last_print = 2.0;
+    double t = Time_GetSeconds();
+    int loop_count = 0;
 
     while (1) {
         x[indices[i]] += 1;
