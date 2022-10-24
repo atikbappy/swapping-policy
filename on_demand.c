@@ -6,8 +6,8 @@
 #include <linux/string.h>
 
 #include "petmem.h"
-#include "on_demand.h"
 #include "pgtables.h"
+#include "on_demand.h"
 #include "swap.h"
 
 #define PHYSICAL_OFFSET(x) (((u64)x) & 0xfff)
@@ -20,6 +20,8 @@
 #define DEBUG 1
 #define CLOCK_POLICY "clock"
 #define FIFO_POLICY "fifo"
+
+
 
 /* when user testing program opens /dev/petmem, this function gets called by petmem_open(),
  * which initializes a list head represented by new_proc->memory_allocations,
@@ -106,7 +108,7 @@ void petmem_free_vspace(struct mem_map * map, uintptr_t vaddr) {
  * Though this does use pte64_t, it works with
  * all types of 64, but there is no general one.
  */
-int handle_table_memory(void * mem, struct mem_map * map, u64 current_page_addr){
+int handle_table_memory(void * mem, struct mem_map * map){
     uintptr_t temp;
     uintptr_t memory;
     pte64_t * handle = (pte64_t *)mem;
@@ -114,11 +116,12 @@ int handle_table_memory(void * mem, struct mem_map * map, u64 current_page_addr)
 
     memory = petmem_alloc_pages(1);
     if (memory == 0) {
-        clear_up_memory(map, current_page_addr);
+        clear_up_memory(map, handle);
         memory = petmem_alloc_pages(1);
-    } else if (memory && current_page_addr) {  // current_page_addr will have address if it's PTE
+    } else {
         new_node = (struct vp_node *)kmalloc(sizeof(struct vp_node), GFP_KERNEL);
-        new_node->page_addr = current_page_addr;
+        new_node->pte = handle;
+		INIT_LIST_HEAD(&(new_node->list));
         list_add_tail(&(new_node->list), &(map->clock_hand)); // It should be a queue.
     }
     temp = (uintptr_t)__va(memory);
@@ -126,6 +129,8 @@ int handle_table_memory(void * mem, struct mem_map * map, u64 current_page_addr)
    //screw it, other way didn't copy permissions, must set them!
     memset((void *)temp, 0, 512*8);
 	handle->present = 1;
+    handle->writable = 1;
+    handle->user_page =1;
 	handle->page_base_addr = PAGE_TO_BASE_ADDR( __pa(temp ));
     return 0;
 }
@@ -155,7 +160,8 @@ uintptr_t get_valid_page_entry(uintptr_t address){
     return (uintptr_t)entries[0];
 }
 
-void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_page_addr){
+// mem: page to replace, pte: new page
+void * page_replacement_clock(struct mem_map * map, void ** mem, void * pte){
     pte64_t * page;
     struct list_head * pos, * next;
     struct vp_node *node;
@@ -163,7 +169,7 @@ void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_pag
     while (1) {
         list_for_each_safe(pos, next, &(map->clock_hand)) {
             node = list_entry(pos, struct vp_node, list);
-            page = (pte64_t *)__va(node->page_addr);
+            page = (pte64_t *)node->pte;
 
             if (page && page->accessed) {
                 page->accessed = 0;
@@ -171,13 +177,7 @@ void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_pag
             }
             else if (page) {
                 list_move_tail(&(map->clock_hand), &(node->list)); // Change clock hand
-                // current_page_addr is 0 means it's actually a page table (page) -> So, we should not include in clock # Requires further discussion
-                if (current_page_addr != 0) {
-                    node->page_addr = current_page_addr;
-                } else { // This is a request for page swap with a page table (page table is also 4kb page)
-                    list_del(&(node->list));
-                    kfree(node);
-                }
+                node->pte = pte;
                 printk("FOUND A PAGE TO REPLACE!!!\n");
                 *mem = (__va( BASE_TO_PAGE_ADDR( page->page_base_addr ) ));
                 return (void *)page;
@@ -186,27 +186,21 @@ void * page_replacement_clock(struct mem_map * map, void ** mem, u64 current_pag
     }
 }
 
-void * page_replacement_fifo(struct mem_map * map, void ** mem, u64 current_page_addr){
+void * page_replacement_fifo(struct mem_map * map, void ** mem, void * pte){
     pte64_t * page;
     struct vp_node *node;
 
     node = list_entry(map->clock_hand.next, struct vp_node, list);
-    page = (pte64_t *)__va(node->page_addr);
-
-    if (current_page_addr == 0) { // This is a request for page swap with a page table (page table is also 4kb page)
-        list_del(&(node->list));
-        kfree(node);
-    } else {
-        list_move_tail(&(node->list), &(map->clock_hand)); // Move the node so that it will pop last from queue
-        node->page_addr = current_page_addr;
-    }
+    page = (pte64_t *)node->pte;
+    list_move_tail(&(node->list), &(map->clock_hand)); // Move the node so that it will pop last from queue
+    node->pte = pte;
 
     printk("FOUND A PAGE TO REPLACE!!!\n");
     *mem = (__va( BASE_TO_PAGE_ADDR( page->page_base_addr ) ));
     return (void *)page;
 }
 
-void clear_up_memory(struct mem_map * map, u64 current_page_addr){
+void clear_up_memory(struct mem_map * map, void * pte) { 
     u32 index;
     pte64_t * page_to_replace, * mem_location;
 
@@ -214,9 +208,9 @@ void clear_up_memory(struct mem_map * map, u64 current_page_addr){
     printk("GETTING SOME MO MEMZ\n");
     /* pick a page based on the swap policy - clock policy is default */
     if (strcmp(map->policy_name, FIFO_POLICY) == 0) {
-        page_to_replace = (pte64_t *)page_replacement_fifo(map, (void **)&mem_location, current_page_addr);
+        page_to_replace = (pte64_t *)page_replacement_fifo(map, (void **)&mem_location, pte);
     } else {
-        page_to_replace = (pte64_t *)page_replacement_clock(map, (void **)&mem_location, current_page_addr);
+        page_to_replace = (pte64_t *)page_replacement_clock(map, (void **)&mem_location, pte);
     }
     page_to_replace->present = 0;
     page_to_replace->dirty = 1;
@@ -231,7 +225,6 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
 	pdpe64_t * pdp;
 	pde64_t * pde;
 	pte64_t * pte;
-    u64 current_page_addr;
     int bad_signal = 0;
     int valid_range = check_address_range(map, fault_addr);
     char * space;
@@ -243,24 +236,18 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
 
     cr3 = (pml4e64_t *) (CR3_TO_PML4E64_VA( get_cr3() ) + PML4E64_INDEX( fault_addr ) * 8);
     if(!cr3->present) {
-        bad_signal = handle_table_memory((void *)cr3, map, 0);
+       GENERATE_TABLE(cr3, pdp_base_addr);
     }
 
     pdp = (pdpe64_t *)__va( BASE_TO_PAGE_ADDR( cr3->pdp_base_addr ) + (PDPE64_INDEX( fault_addr ) * 8)) ;
     if(!pdp->present) {
-        bad_signal += handle_table_memory((void *) pdp, map, 0);
-        pdp->present = 1;
-        pdp->writable = 1;
-        pdp->user_page = 1;
+        GENERATE_TABLE(pdp, pd_base_addr);
 
     }
 
     pde = (pde64_t *)__va(BASE_TO_PAGE_ADDR( pdp->pd_base_addr ) + PDE64_INDEX( fault_addr )* 8);
     if(!pde->present) {
-        bad_signal += handle_table_memory((void *) pde, map, 0);
-        pde->present = 1;
-        pde->writable = 1;
-        pde->user_page = 1;
+        GENERATE_TABLE(pde, pt_base_addr);
     }
 
     pte = (pte64_t *)__va( BASE_TO_PAGE_ADDR( pde->pt_base_addr ) + PTE64_INDEX( fault_addr ) * 8 );
@@ -268,13 +255,8 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
     // TODO: Check the dirty bit as well, to differentiate between compulsory vs swapped out.
 
     if (!pte->present) {
-        current_page_addr = BASE_TO_PAGE_ADDR( pde->pt_base_addr ) + PTE64_INDEX( fault_addr ) * 8;
-
         if(!pte->dirty) { // Dirty means it was touched at least once in its lifetime
-            bad_signal += handle_table_memory((void *) pte, map, current_page_addr);
-            pte->present = 1;
-            pte->writable = 1;
-            pte->user_page =1;
+            bad_signal += handle_table_memory((void *) pte, map);
         }
         else {
             void * page = kmalloc(4096,GFP_KERNEL);
@@ -286,7 +268,7 @@ int petmem_handle_pagefault(struct mem_map * map, uintptr_t fault_addr, u32 erro
             space = (void *)petmem_alloc_pages(1);
             /* when space is 0, it tells us it's time to swap some pages out. */
             if (space == 0){
-                clear_up_memory(map, current_page_addr);
+                clear_up_memory(map, pte);
                 space = (void * )petmem_alloc_pages(1);
             }
             printk("Allocated space for new page.\n");
