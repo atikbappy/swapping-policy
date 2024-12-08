@@ -19,6 +19,9 @@ double Time_GetSeconds() {
  */
 
 int main(int argc, char ** argv) {
+    FILE * fp;
+    fp = freopen("input.txt", "r", stdin);
+
     if (argc != 2) {
         fprintf(stderr, "usage: spin <memory (MB)>\n");
         exit(1);
@@ -42,9 +45,12 @@ int main(int argc, char ** argv) {
     long long int num_ints = size_in_bytes / sizeof(int);
     printf("  number of integers in array: %lld\n", num_ints);
 
-    long long int twenty_percent = (num_ints * 20) / 100;
-    long long int eighty_percent = num_ints - twenty_percent;
-    srandom(1000);
+    int * indices;
+	int j;
+    indices = (int *)malloc(num_ints * sizeof(int));
+    for (j=0; j<num_ints; j++) {
+        scanf("%d", &indices[j]);
+    }
 
     long long int i = 0, index;
     double time_since_last_print = 2.0;
@@ -52,14 +58,7 @@ int main(int argc, char ** argv) {
     int loop_count = 0;
 
     while (1) {
-        int boundary = random() % 10;
-        long long int r = random();
-        if (boundary > 1) {
-            index = r % twenty_percent;
-        } else {
-            index = (r % eighty_percent) + twenty_percent;
-        }
-        x[index] += 1;
+        x[indices[i]] += 1;
         i++;
 
         if (i == num_ints) {
@@ -78,6 +77,7 @@ int main(int argc, char ** argv) {
         }
     }
 
+    fclose(fp);
     pet_free(x);
 
     return 0;

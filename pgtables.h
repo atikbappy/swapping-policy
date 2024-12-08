@@ -325,3 +325,10 @@ typedef struct pf_error_code {
     u32 ifetch            : 1; // if 1, faulting access was an instr fetch (only with NX)
     u32 rsvd              : 27;
 } __attribute__((packed)) pf_error_t;
+
+#define GENERATE_TABLE(entry, member) ({ \
+      entry->present = 1;  \
+      entry->writable = 1;  \
+      entry->user_page = 1;  \
+      entry->member = PAGE_TO_BASE_ADDR(__pa( get_zeroed_page(GFP_KERNEL) ));  \
+})

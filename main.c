@@ -87,7 +87,7 @@ static long petmem_ioctl(struct file * filp,
 
 
 	    base_addr = (uintptr_t)__va(reg.base_addr);
-	    num_pages = reg.pages;
+	    num_pages = reg.pages/64;
 
 	    // The order is equal to the highest order bit; ffs returns the position of the most significant set bit.
 	    for (reg_order = fls(num_pages); reg_order != 0; reg_order = fls(num_pages)) {
